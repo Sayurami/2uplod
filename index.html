@@ -2,74 +2,85 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Gojo Gallery</title>
+  <title>Sayura Uploads</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    img { width: 200px; display: block; margin: 10px 0; }
-    .delete-btn { display: none; color: red; cursor: pointer; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    form { margin-bottom: 20px; }
+    .file-card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 6px; }
+    .delete-btn { background: red; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
-  <h1>📸 Gojo Gallery</h1>
+  <h1>📂 Sayura File Uploads</h1>
 
-  <div id="login">
-    <input type="text" id="username" placeholder="Admin Username">
-    <input type="password" id="password" placeholder="Admin Password">
-    <button onclick="loginAdmin()">Login</button>
-  </div>
+  <!-- Upload form -->
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="text" name="name" placeholder="Your name"><br><br>
+    <input type="text" name="description" placeholder="Description"><br><br>
+    <input type="file" name="photo" required><br><br>
+    <button type="submit">Upload</button>
+  </form>
 
+  <h2>Gallery</h2>
   <div id="gallery"></div>
 
   <script>
+    const gallery = document.getElementById("gallery");
     let isAdmin = false;
-    let adminCreds = {};
 
-    function loginAdmin() {
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-      if (!username || !password) return alert("Enter login details!");
+    // Simple login for admin
+    const user = prompt("Enter username (or leave blank):");
+    const pass = prompt("Enter password (or leave blank):");
 
-      adminCreds = { username, password };
+    if (user === "sayura" && pass === "Sayura2008***7") {
       isAdmin = true;
-      localStorage.setItem("isAdmin", "true");
-      alert("✅ Logged in as Admin");
-      loadGallery();
+      alert("✅ Admin mode enabled");
     }
 
+    // Load gallery
     async function loadGallery() {
+      gallery.innerHTML = "Loading...";
       const res = await fetch("/uploads/");
       const files = await res.json();
-      const gallery = document.getElementById("gallery");
-      gallery.innerHTML = "";
 
-      files.forEach(f => {
+      gallery.innerHTML = "";
+      files.forEach(file => {
         const div = document.createElement("div");
+        div.className = "file-card";
         div.innerHTML = `
-          <p><b>${f.name || f.filename}</b></p>
-          <img src="/file/${f.id}">
-          <button class="delete-btn" onclick="deleteFile('${f.id}')">🗑️ Delete</button>
-          <hr>
+          <p><b>${file.name || "Unnamed"}</b></p>
+          <p>${file.description || ""}</p>
+          <a href="/file/${file.id}" target="_blank">📥 View / Download</a>
+          ${isAdmin ? `<button class="delete-btn" onclick="deleteFile('${file.id}')">Delete</button>` : ""}
         `;
         gallery.appendChild(div);
       });
-
-      if (isAdmin || localStorage.getItem("isAdmin") === "true") {
-        document.querySelectorAll(".delete-btn").forEach(btn => btn.style.display = "inline-block");
-      }
     }
 
-    async function deleteFile(id) {
-      if (!confirm("Delete this file?")) return;
-      await fetch(`/uploads/${id}`, {
-        method: "DELETE",
-        headers: {
-          username: adminCreds.username,
-          password: adminCreds.password
-        }
+    // Upload
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch("/upload", {
+        method: "POST",
+        body: formData
       });
+      const data = await res.json();
+      alert("✅ Uploaded: " + data.fileId);
+      loadGallery();
+    });
+
+    // Delete (admin only)
+    async function deleteFile(id) {
+      if (!confirm("Are you sure?")) return;
+      await fetch("/uploads/" + id, { method: "DELETE" });
+      alert("🗑️ Deleted");
       loadGallery();
     }
 
+    // First load
     loadGallery();
   </script>
 </body>
