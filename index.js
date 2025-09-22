@@ -1,31 +1,43 @@
 const express = require('express');
 const multer = require('multer');
 const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🚨 Direct MongoDB URI (replace with your one if different)
+// MongoDB URI
 const uri = "mongodb://mongo:oPUThvVacCFrJGoxlriBbRmtdlyVtlKL@ballast.proxy.rlwy.net:27465";
 
 const client = new MongoClient(uri);
 let bucket, db;
 
-client.connect().then(() => {
-  db = client.db("uploads_db");
-  bucket = new GridFSBucket(db, { bucketName: "photos" });
-  console.log("✅ MongoDB connected");
-});
+// Connect to MongoDB before starting server
+async function initMongo() {
+  try {
+    await client.connect();
+    db = client.db("uploads_db");
+    bucket = new GridFSBucket(db, { bucketName: "photos" });
+    console.log("✅ MongoDB connected");
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err);
+    process.exit(1);
+  }
+}
 
-// Multer memory storage (instead of saving to disk)
+// Multer memory storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Upload
+// Serve index.html (no need public folder)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Upload route
 app.post('/upload', upload.single('photo'), (req, res) => {
   if (!req.file) return res.status(400).send('No file uploaded!');
   const { name, description } = req.body;
@@ -89,4 +101,7 @@ app.delete('/uploads/:id', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// Start server after MongoDB init
+initMongo().then(() => {
+  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+});
