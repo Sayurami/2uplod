@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Admin username/password (directly set here)
+// 🔑 Admin credentials
 const ADMIN_USER = "sayura";
 const ADMIN_PASS = "Sayura2008***7";
 
@@ -16,6 +16,7 @@ const uri = "mongodb://mongo:oPUThvVacCFrJGoxlriBbRmtdlyVtlKL@ballast.proxy.rlwy
 const client = new MongoClient(uri);
 let bucket, db;
 
+// Connect to MongoDB before starting server
 async function initMongo() {
   try {
     await client.connect();
@@ -35,7 +36,7 @@ const upload = multer({ storage });
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve index.html
+// Serve HTML
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -56,11 +57,14 @@ app.post('/upload', upload.single('photo'), (req, res) => {
   uploadStream.end(req.file.buffer);
 
   uploadStream.on("finish", () => {
-    res.json({ success: true, fileId: uploadStream.id.toString() });
+    res.json({
+      success: true,
+      fileId: uploadStream.id.toString()
+    });
   });
 });
 
-// Return gallery
+// Return gallery (metadata only)
 app.get('/uploads/', async (req, res) => {
   const files = await db.collection("photos.files").find().toArray();
   res.json(files.map(f => ({
@@ -90,27 +94,28 @@ app.get('/file/:id', (req, res) => {
   }
 });
 
-// Middleware for admin auth
-function adminAuth(req, res, next) {
-  const { username, password } = req.headers;
+// Delete file (admin only)
+app.delete('/uploads/:id', async (req, res) => {
+  const auth = req.headers['authorization'];
+  if (!auth) return res.json({ success: false, error: "Unauthorized" });
 
-  if (username === ADMIN_USER && password === ADMIN_PASS) {
-    return next();
+  const [user, pass] = Buffer.from(auth.split(" ")[1], "base64").toString().split(":");
+
+  if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+    return res.json({ success: false, error: "Forbidden" });
   }
-  return res.status(403).json({ error: "❌ Unauthorized" });
-}
 
-// Delete file (only admin)
-app.delete('/uploads/:id', adminAuth, async (req, res) => {
   try {
     const id = new ObjectId(req.params.id);
     await bucket.delete(id);
     res.json({ success: true });
   } catch (e) {
-    res.status(404).send("File not found");
+    console.error("❌ Delete failed:", e.message);
+    res.json({ success: false, error: e.message });
   }
 });
 
+// Start server
 initMongo().then(() => {
   app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 });
