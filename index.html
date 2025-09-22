@@ -49,6 +49,10 @@ const loginToggle = document.getElementById('loginToggle');
 
 let isAdmin = false; // default not logged in
 
+// 🔑 Hard-coded admin credentials (frontend)
+const ADMIN_USER = "sayura";
+const ADMIN_PASS = "Sayura2008***7";
+
 // Convert links in text
 function linkify(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -87,10 +91,15 @@ function downloadPhoto(url) {
 // Delete photo (admin only)
 async function deletePhoto(fileId) {
   if (!confirm('Are you sure you want to delete this photo?')) return;
-  const res = await fetch('/uploads/' + fileId, { method: 'DELETE' });
+  const res = await fetch('/uploads/' + fileId, { 
+    method: 'DELETE',
+    headers: {
+      "Authorization": "Basic " + btoa(ADMIN_USER + ":" + ADMIN_PASS)
+    }
+  });
   const data = await res.json();
   if (data.success) loadGallery();
-  else alert('Delete failed');
+  else alert('Delete failed: ' + (data.error || ""));
 }
 
 // Upload new photo
@@ -112,17 +121,12 @@ loginToggle.addEventListener('click', () => {
   loginBox.style.display = loginBox.style.display === 'flex' ? 'none' : 'flex';
 });
 
-// Admin login
-async function login() {
+// Admin login (frontend only)
+function login() {
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
-  const res = await fetch('/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
-  });
-  const data = await res.json();
-  if (data.success) {
+
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
     isAdmin = true;
     loginBox.style.display = 'none';
     alert('✅ Admin logged in!');
