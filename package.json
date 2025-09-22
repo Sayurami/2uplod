@@ -2,9 +2,9 @@
   "name": "gojo-pair-web",
   "version": "1.0.0",
   "description": "Gojo MD style photo upload web app with Mega",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node index.js"
   },
   "engines": {
     "node": "22.x",
