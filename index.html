@@ -32,22 +32,10 @@
 const form = document.getElementById('uploadForm');
 const gallery = document.getElementById('gallery');
 
-// 🔑 Simple admin auth
+// 🛡️ Admin login details
 const ADMIN_USER = "sayura";
 const ADMIN_PASS = "Sayura2008***7";
 let isAdmin = false;
-
-function adminLogin() {
-  const user = prompt("Enter admin username:");
-  const pass = prompt("Enter admin password:");
-  if (user === ADMIN_USER && pass === ADMIN_PASS) {
-    alert("✅ Logged in as admin!");
-    isAdmin = true;
-    loadGallery();
-  } else {
-    alert("❌ Wrong credentials");
-  }
-}
 
 function linkify(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -64,9 +52,9 @@ async function loadGallery() {
     div.innerHTML = `
       <img src="/file/${item.id}" onclick="window.open('/file/${item.id}', '_blank')" />
       <h3>${item.name}</h3>
-      <p>${linkify(item.description || '')}</p>
+      <p>${linkify(item.description)}</p>
       <button onclick="downloadPhoto('/file/${item.id}')">Download</button>
-      ${isAdmin ? `<button onclick="deletePhoto('${item.id}')">Delete</button>` : ""}
+      ${isAdmin ? `<button onclick="deletePhoto('${item.id}')">Delete</button>` : ''}
     `;
     gallery.appendChild(div);
   });
@@ -83,10 +71,18 @@ function downloadPhoto(url) {
 
 async function deletePhoto(id) {
   if (!confirm('Are you sure you want to delete this photo?')) return;
-  const res = await fetch('/uploads/' + id, { method: 'DELETE' });
+  const auth = btoa(`${ADMIN_USER}:${ADMIN_PASS}`);
+  const res = await fetch('/uploads/' + id, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Basic ' + auth }
+  });
   const data = await res.json();
-  if (data.success) loadGallery();
-  else alert('Delete failed');
+  if (data.success) {
+    alert("✅ Deleted!");
+    loadGallery();
+  } else {
+    alert("❌ Delete failed: " + (data.error || 'unknown error'));
+  }
 }
 
 form.addEventListener('submit', async e => {
@@ -102,12 +98,14 @@ form.addEventListener('submit', async e => {
   }
 });
 
-// Load gallery on page load
+// 🛡️ Ask admin login once
+if (prompt("Admin username?") === ADMIN_USER && prompt("Admin password?") === ADMIN_PASS) {
+  isAdmin = true;
+  alert("🔑 Admin mode enabled");
+}
+
 loadGallery();
 </script>
-
-<hr>
-<button onclick="adminLogin()">🔑 Admin Login</button>
 
 </body>
 </html>
