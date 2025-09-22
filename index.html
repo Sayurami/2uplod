@@ -4,12 +4,13 @@
   <meta charset="UTF-8">
   <title>Sayura Uploads</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
     h1 { color: #333; }
-    form { margin-bottom: 20px; }
-    .file-card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 6px; }
-    .delete-btn { background: red; color: white; border: none; padding: 5px 10px; cursor: pointer; }
-    .hidden { display: none; }
+    form { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; background: #fff; border-radius: 6px; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+    .file-card { border: 1px solid #ccc; background: white; padding: 10px; border-radius: 6px; text-align: center; }
+    .file-card img { max-width: 100%; max-height: 150px; display: block; margin: auto; border-radius: 4px; }
+    .delete-btn { background: red; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-top: 8px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -19,18 +20,18 @@
   <form id="uploadForm" enctype="multipart/form-data">
     <input type="text" name="name" placeholder="Your name"><br><br>
     <input type="text" name="description" placeholder="Description"><br><br>
-    <input type="file" name="photo" required><br><br>
+    <input type="file" name="photo" accept="image/*" required><br><br>
     <button type="submit">Upload</button>
   </form>
 
   <h2>Gallery</h2>
-  <div id="gallery"></div>
+  <div class="gallery" id="gallery"></div>
 
   <script>
     const gallery = document.getElementById("gallery");
     let isAdmin = false;
 
-    // Simple login for admin
+    // Prompt admin login
     const user = prompt("Enter username (or leave blank):");
     const pass = prompt("Enter password (or leave blank):");
 
@@ -52,32 +53,35 @@
         div.innerHTML = `
           <p><b>${file.name || "Unnamed"}</b></p>
           <p>${file.description || ""}</p>
-          <a href="/file/${file.id}" target="_blank">📥 View / Download</a>
+          <a href="/file/${file.id}" target="_blank">
+            <img src="/file/${file.id}" alt="${file.filename}">
+          </a><br>
           ${isAdmin ? `<button class="delete-btn" onclick="deleteFile('${file.id}')">Delete</button>` : ""}
         `;
         gallery.appendChild(div);
       });
     }
 
-    // Upload
+    // Upload file
     document.getElementById("uploadForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
-      const res = await fetch("/upload", {
-        method: "POST",
-        body: formData
-      });
+      const res = await fetch("/upload", { method: "POST", body: formData });
       const data = await res.json();
       alert("✅ Uploaded: " + data.fileId);
       loadGallery();
     });
 
-    // Delete (admin only)
+    // Delete file (admin only)
     async function deleteFile(id) {
       if (!confirm("Are you sure?")) return;
-      await fetch("/uploads/" + id, { method: "DELETE" });
-      alert("🗑️ Deleted");
-      loadGallery();
+      const res = await fetch("/uploads/" + id, { method: "DELETE" });
+      if (res.ok) {
+        alert("🗑️ Deleted");
+        loadGallery();
+      } else {
+        alert("❌ Delete failed");
+      }
     }
 
     // First load
