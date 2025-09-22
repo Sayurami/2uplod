@@ -1,93 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gojo Photo Gallery</title>
-<style>
-  body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; padding: 20px; }
-  h1 { margin-top: 20px; }
-  form { margin: 20px auto; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  .gallery { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
-  .gallery-item { width: 200px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #fff; }
-  .gallery-item img { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; cursor: pointer; }
-  .gallery-item h3, .gallery-item p { margin: 5px 0; word-break: break-word; }
-  .gallery-item button { margin-top: 5px; padding: 5px 10px; cursor: pointer; }
-</style>
+  <meta charset="UTF-8">
+  <title>Gojo Gallery</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    img { width: 200px; display: block; margin: 10px 0; }
+    .delete-btn { display: none; color: red; cursor: pointer; }
+  </style>
 </head>
 <body>
+  <h1>📸 Gojo Gallery</h1>
 
-<h1>📸 Gojo Photo Gallery</h1>
+  <div id="login">
+    <input type="text" id="username" placeholder="Admin Username">
+    <input type="password" id="password" placeholder="Admin Password">
+    <button onclick="loginAdmin()">Login</button>
+  </div>
 
-<form id="uploadForm" enctype="multipart/form-data">
-  <input type="file" name="photo" accept="image/*" required />
-  <input type="text" name="name" placeholder="Photo Name" required />
-  <textarea name="description" placeholder="Photo Description (support links)" rows="2" required></textarea>
-  <button type="submit">Upload</button>
-</form>
+  <div id="gallery"></div>
 
-<div class="gallery" id="gallery"></div>
+  <script>
+    let isAdmin = false;
+    let adminCreds = {};
 
-<script>
-const form = document.getElementById('uploadForm');
-const gallery = document.getElementById('gallery');
+    function loginAdmin() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      if (!username || !password) return alert("Enter login details!");
 
-function linkify(text) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return text.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
-}
+      adminCreds = { username, password };
+      isAdmin = true;
+      localStorage.setItem("isAdmin", "true");
+      alert("✅ Logged in as Admin");
+      loadGallery();
+    }
 
-async function loadGallery() {
-  const res = await fetch('/uploads/');
-  const items = await res.json();
-  gallery.innerHTML = '';
-  items.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'gallery-item';
-    div.innerHTML = `
-      <img src="/file/${item.id}" onclick="window.open('/file/${item.id}', '_blank')" />
-      <h3>${item.name}</h3>
-      <p>${linkify(item.description)}</p>
-      <button onclick="downloadPhoto('/file/${item.id}', '${item.filename}')">Download</button>
-      <button onclick="deletePhoto('${item.id}')">Delete</button>
-    `;
-    gallery.appendChild(div);
-  });
-}
+    async function loadGallery() {
+      const res = await fetch("/uploads/");
+      const files = await res.json();
+      const gallery = document.getElementById("gallery");
+      gallery.innerHTML = "";
 
-function downloadPhoto(url, filename) {
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
+      files.forEach(f => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <p><b>${f.name || f.filename}</b></p>
+          <img src="/file/${f.id}">
+          <button class="delete-btn" onclick="deleteFile('${f.id}')">🗑️ Delete</button>
+          <hr>
+        `;
+        gallery.appendChild(div);
+      });
 
-async function deletePhoto(id) {
-  if (!confirm('Are you sure you want to delete this photo?')) return;
-  const res = await fetch('/uploads/' + id, { method: 'DELETE' });
-  const data = await res.json();
-  if (data.success) loadGallery();
-  else alert('Delete failed');
-}
+      if (isAdmin || localStorage.getItem("isAdmin") === "true") {
+        document.querySelectorAll(".delete-btn").forEach(btn => btn.style.display = "inline-block");
+      }
+    }
 
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  const formData = new FormData(form);
-  const response = await fetch('/upload', { method: 'POST', body: formData });
-  const data = await response.json();
-  if (data.success) {
-    await loadGallery();
-    form.reset();
-  } else {
-    alert('Upload failed');
-  }
-});
+    async function deleteFile(id) {
+      if (!confirm("Delete this file?")) return;
+      await fetch(`/uploads/${id}`, {
+        method: "DELETE",
+        headers: {
+          username: adminCreds.username,
+          password: adminCreds.password
+        }
+      });
+      loadGallery();
+    }
 
-// Load gallery on page load
-loadGallery();
-</script>
-
+    loadGallery();
+  </script>
 </body>
 </html>
