@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gojo Photo Gallery</title>
+
+<!-- 🔑 Google Site Verification -->
+<meta name="google-site-verification" content="374414" />
+
 <style>
   body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; padding: 20px; }
   h1 { margin-top: 20px; }
@@ -20,7 +24,7 @@
 
 <h1>📸 Gojo Photo Gallery</h1>
 
-<!-- Upload form (everyone can use) -->
+<!-- Upload form -->
 <form id="uploadForm" enctype="multipart/form-data">
   <input type="file" name="photo" accept="image/*" required />
   <input type="text" name="name" placeholder="Photo Name" required />
@@ -28,7 +32,7 @@
   <button type="submit">Upload</button>
 </form>
 
-<!-- Login Box (only for admin) -->
+<!-- Login Box -->
 <div id="loginBox">
   <h3>🔑 Admin Login</h3>
   <input type="text" id="username" placeholder="Username" />
@@ -36,9 +40,10 @@
   <button onclick="login()">Login</button>
 </div>
 
-<!-- Login button visible under gallery -->
+<!-- Login toggle button -->
 <button id="loginToggle">Admin Login</button>
 
+<!-- Gallery -->
 <div class="gallery" id="gallery"></div>
 
 <script>
@@ -49,7 +54,7 @@ const loginToggle = document.getElementById('loginToggle');
 
 let isAdmin = false; // default not logged in
 
-// 🔑 Hard-coded admin credentials (frontend)
+// 🔑 Hard-coded admin credentials
 const ADMIN_USER = "sayura";
 const ADMIN_PASS = "Sayura2008***7";
 
@@ -59,23 +64,28 @@ function linkify(text) {
   return text.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
 }
 
-// Load gallery from backend
+// Load gallery items
 async function loadGallery() {
-  const res = await fetch('/uploads/');
-  const items = await res.json();
-  gallery.innerHTML = '';
-  items.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'gallery-item';
-    div.innerHTML = `
-      <img src="/file/${item.id}" onclick="window.open('/file/${item.id}', '_blank')" />
-      <h3>${item.name}</h3>
-      <p>${linkify(item.description)}</p>
-      <button onclick="downloadPhoto('/file/${item.id}')">Download</button>
-      ${isAdmin ? `<button onclick="deletePhoto('${item.id}')">Delete</button>` : ""}
-    `;
-    gallery.appendChild(div);
-  });
+  try {
+    const res = await fetch('/uploads/');
+    const items = await res.json();
+    gallery.innerHTML = '';
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'gallery-item';
+      div.innerHTML = `
+        <img src="/file/${item.id}" onclick="window.open('/file/${item.id}', '_blank')" />
+        <h3>${item.name}</h3>
+        <p>${linkify(item.description)}</p>
+        <button onclick="downloadPhoto('/file/${item.id}')">Download</button>
+        ${isAdmin ? `<button onclick="deletePhoto('${item.id}')">Delete</button>` : ""}
+      `;
+      gallery.appendChild(div);
+    });
+  } catch (err) {
+    console.error("Failed to load gallery", err);
+    gallery.innerHTML = "<p>⚠️ Failed to load gallery</p>";
+  }
 }
 
 // Download photo
@@ -91,28 +101,39 @@ function downloadPhoto(url) {
 // Delete photo (admin only)
 async function deletePhoto(fileId) {
   if (!confirm('Are you sure you want to delete this photo?')) return;
-  const res = await fetch('/uploads/' + fileId, { 
-    method: 'DELETE',
-    headers: {
-      "Authorization": "Basic " + btoa(ADMIN_USER + ":" + ADMIN_PASS)
+  try {
+    const res = await fetch('/uploads/' + fileId, { 
+      method: 'DELETE',
+      headers: {
+        "Authorization": "Basic " + btoa(ADMIN_USER + ":" + ADMIN_PASS)
+      }
+    });
+    const data = await res.json();
+    if (data.success) {
+      loadGallery();
+    } else {
+      alert('Delete failed: ' + (data.error || ""));
     }
-  });
-  const data = await res.json();
-  if (data.success) loadGallery();
-  else alert('Delete failed: ' + (data.error || ""));
+  } catch (err) {
+    alert('Error deleting photo');
+  }
 }
 
 // Upload new photo
 form.addEventListener('submit', async e => {
   e.preventDefault();
   const formData = new FormData(form);
-  const response = await fetch('/upload', { method: 'POST', body: formData });
-  const data = await response.json();
-  if (data.success) {
-    await loadGallery();
-    form.reset();
-  } else {
-    alert('Upload failed');
+  try {
+    const response = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await response.json();
+    if (data.success) {
+      await loadGallery();
+      form.reset();
+    } else {
+      alert('Upload failed');
+    }
+  } catch (err) {
+    alert('Error uploading photo');
   }
 });
 
@@ -121,10 +142,10 @@ loginToggle.addEventListener('click', () => {
   loginBox.style.display = loginBox.style.display === 'flex' ? 'none' : 'flex';
 });
 
-// Admin login (frontend only)
+// Admin login
 function login() {
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
 
   if (username === ADMIN_USER && password === ADMIN_PASS) {
     isAdmin = true;
