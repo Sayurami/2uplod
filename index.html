@@ -144,11 +144,15 @@
   </div>
 
   <main>
-    <!-- Search + Actions -->
-    <div class="controls">
-      <input id="searchBar" placeholder="Search anime, wallpapers, tags..." oninput="searchGallery()" />
-    </div>
 
+<!-- Search + Actions -->
+<div class="controls">
+  <input id="searchBar" 
+         placeholder="Search anime, wallpapers, tags..." 
+         oninput="searchGallery()" 
+         onkeypress="if(event.key==='Enter'){ event.preventDefault(); searchGallery(); }" />
+  <button class="btn" onclick="searchGallery()">🔍 Search</button>
+</div>
     <!-- Small Ad (Auto ads handled by AdSense script; below is a responsive unit example) -->
     <div style="margin:14px auto; max-width:728px; text-align:center;">
       <!-- sample ad slot (AdSense will fill) -->
@@ -220,7 +224,7 @@
 
   <footer>
     <div style="max-width:980px;margin:0 auto">
-      <div style="margin-bottom:8px">© 2025 SL ANIME WORLD</div>
+      <div style="margin-bottom:8px">© 2025 SL ANIME WORLD create by sayura😍💀</div>
       <div>
         <a href="#privacy">Privacy Policy</a> ·
         <a href="#">Terms</a> ·
