@@ -1,7 +1,3 @@
-// =========================
-// 📁 index.js — Upload + Gallery + Delete API (MongoDB + GridFS)
-// =========================
-
 const express = require('express');
 const multer = require('multer');
 const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
@@ -14,49 +10,48 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_USER = "sayura";
 const ADMIN_PASS = "Sayura2008***7";
 
-// ✅ Direct MongoDB URI (no env file needed)
+// ✅ Fixed MongoDB URI
 const MONGO_URI = "mongodb+srv://sayuramihiranga4_db_user:iTSvhogsJueCYCWv@cluster0.63ji5ou.mongodb.net/uploads_db?retryWrites=true&w=majority&appName=Cluster0";
 
-const client = new MongoClient(MONGO_URI);
+// 🧠 Mongo client options (TLS fix)
+const client = new MongoClient(MONGO_URI, {
+  tls: true,
+  tlsAllowInvalidCertificates: true,
+  serverSelectionTimeoutMS: 10000
+});
+
 let db, bucket;
 
-// =========================
-// 🧩 Initialize MongoDB
-// =========================
 async function initMongo() {
   try {
     await client.connect();
     db = client.db("uploads_db");
     bucket = new GridFSBucket(db, { bucketName: "photos" });
-    console.log("✅ MongoDB connected successfully");
+    console.log("✅ MongoDB connected successfully!");
   } catch (err) {
     console.error("❌ MongoDB connection failed:", err);
     process.exit(1);
   }
 }
 
-// =========================
-// ⚙️ Middleware
-// =========================
+// Multer storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// =========================
-// 🏠 Serve main HTML (upload form)
-// =========================
+// Main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// =========================
-// 📤 Upload endpoint
-// =========================
+// Upload file
 app.post('/upload', upload.single('photo'), (req, res) => {
   if (!req.file) return res.status(400).send('No file uploaded!');
   const { name, description } = req.body;
+
+  if (!bucket) return res.status(500).send("Database not ready!");
 
   const uploadStream = bucket.openUploadStream(req.file.originalname, {
     metadata: {
@@ -69,22 +64,18 @@ app.post('/upload', upload.single('photo'), (req, res) => {
   uploadStream.end(req.file.buffer);
 
   uploadStream.on("finish", () => {
-    res.json({
-      success: true,
-      fileId: uploadStream.id.toString()
-    });
+    res.json({ success: true, fileId: uploadStream.id.toString() });
   });
 
-  uploadStream.on("error", (err) => {
+  uploadStream.on("error", err => {
     console.error("❌ Upload error:", err);
     res.status(500).send("Upload failed");
   });
 });
 
-// =========================
-// 🖼️ Get all uploaded files
-// =========================
+// Get uploaded files
 app.get('/uploads/', async (req, res) => {
+  if (!db) return res.status(500).send("Database not connected!");
   try {
     const files = await db.collection("photos.files").find().toArray();
     res.json(files.map(f => ({
@@ -100,11 +91,10 @@ app.get('/uploads/', async (req, res) => {
   }
 });
 
-// =========================
-// 📥 View or download file
-// =========================
+// Download file
 app.get('/file/:id', (req, res) => {
   try {
+    if (!bucket) return res.status(500).send("Bucket not ready!");
     const id = new ObjectId(req.params.id);
     const downloadStream = bucket.openDownloadStream(id);
 
@@ -120,18 +110,15 @@ app.get('/file/:id', (req, res) => {
   }
 });
 
-// =========================
-// ❌ Delete file (Admin only)
-// =========================
+// Delete file (Admin)
 app.delete('/uploads/:id', async (req, res) => {
   const auth = req.headers['authorization'];
   if (!auth) return res.json({ success: false, error: "Unauthorized" });
 
   const [user, pass] = Buffer.from(auth.split(" ")[1], "base64").toString().split(":");
 
-  if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+  if (user !== ADMIN_USER || pass !== ADMIN_PASS)
     return res.json({ success: false, error: "Forbidden" });
-  }
 
   try {
     const id = new ObjectId(req.params.id);
@@ -143,9 +130,6 @@ app.delete('/uploads/:id', async (req, res) => {
   }
 });
 
-// =========================
-// 🚀 Start server
-// =========================
 initMongo().then(() => {
   app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 });
