@@ -1,13 +1,11 @@
-// ===============================
-// 🧩 SL ANIME WORLD - File Upload Server
-// ===============================
-
+sayuramihiranga4_db_user
+iTSvhogsJueCYCWv
+මෙකට දාලා දියම්
 const express = require('express');
 const multer = require('multer');
 const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
 const path = require('path');
 
-// Create Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -15,130 +13,115 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_USER = "sayura";
 const ADMIN_PASS = "Sayura2008***7";
 
-// 🌍 MongoDB Atlas URI (Environment Variable or default)
-const MONGO_URI =
-  process.env.MONGO_URI ||
-  "mongodb+srv://sayuramihiranga4_db_user:iTSvhogsJueCYCWv@cluster0.63ji5ou.mongodb.net/uploads_db?retryWrites=true&w=majority&appName=Cluster0";
+// MongoDB URI
+const uri = "mongodb://mongo:GouzxjDgxhsEWiVbpEOJGCUlLHmOVEfq@crossover.proxy.rlwy.net:37897";
 
-// 🧠 MongoDB Client setup
-const client = new MongoClient(MONGO_URI, {
-  tls: true,
-  tlsAllowInvalidCertificates: true,
-  serverSelectionTimeoutMS: 10000,
-});
+const client = new MongoClient(uri);
+let bucket, db;
 
-let db, bucket;
-
-// 🪢 Initialize MongoDB connection
+// Connect to MongoDB before starting server
 async function initMongo() {
-  try {
-    await client.connect();
-    db = client.db("uploads_db");
-    bucket = new GridFSBucket(db, { bucketName: "photos" });
-    console.log("✅ MongoDB connected successfully!");
-  } catch (err) {
-    console.error("❌ MongoDB connection failed:", err);
-    process.exit(1);
-  }
+try {
+await client.connect();
+db = client.db("uploads_db");
+bucket = new GridFSBucket(db, { bucketName: "photos" });
+console.log("✅ MongoDB connected");
+} catch (err) {
+console.error("❌ MongoDB connection failed:", err);
+process.exit(1);
+}
 }
 
-// 🧰 Multer setup (memory storage)
+// Multer memory storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// 🧩 Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 🏠 Serve the frontend HTML
+// Serve HTML
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 📤 Upload Route
+// Upload route
 app.post('/upload', upload.single('photo'), (req, res) => {
-  if (!req.file) return res.status(400).send('No file uploaded!');
+if (!req.file) return res.status(400).send('No file uploaded!');
+const { name, description } = req.body;
 
-  const { name, description } = req.body;
-
-  const uploadStream = bucket.openUploadStream(req.file.originalname, {
-    metadata: {
-      name: name || 'No Name',
-      description: description || 'No Description',
-      mimetype: req.file.mimetype,
-    },
-  });
-
-  uploadStream.end(req.file.buffer);
-
-  uploadStream.on('finish', () => {
-    res.json({
-      success: true,
-      fileId: uploadStream.id.toString(),
-    });
-  });
+const uploadStream = bucket.openUploadStream(req.file.originalname, {
+metadata: {
+name: name || 'No Name',
+description: description || 'No Description',
+mimetype: req.file.mimetype
+}
 });
 
-// 🧾 Get all uploads (metadata only)
+uploadStream.end(req.file.buffer);
+
+uploadStream.on("finish", () => {
+res.json({
+success: true,
+fileId: uploadStream.id.toString()
+});
+});
+});
+
+// Return gallery (metadata only)
 app.get('/uploads/', async (req, res) => {
-  try {
-    const files = await db.collection('photos.files').find().toArray();
-    res.json(
-      files.map((f) => ({
-        id: f._id,
-        filename: f.filename,
-        name: f.metadata?.name,
-        description: f.metadata?.description,
-        mimetype: f.metadata?.mimetype,
-      }))
-    );
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+const files = await db.collection("photos.files").find().toArray();
+res.json(files.map(f => ({
+id: f._id,
+filename: f.filename,
+name: f.metadata?.name,
+description: f.metadata?.description,
+mimetype: f.metadata?.mimetype
+})));
 });
 
-// 📥 View or Download a file
+// Download file by ID
 app.get('/file/:id', (req, res) => {
-  try {
-    const id = new ObjectId(req.params.id);
-    const downloadStream = bucket.openDownloadStream(id);
+try {
+const id = new ObjectId(req.params.id);
+const downloadStream = bucket.openDownloadStream(id);
 
-    downloadStream.on('file', (file) => {
-      res.setHeader('Content-Type', file.metadata?.mimetype || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
-    });
+downloadStream.on("file", (file) => {  
+  res.setHeader("Content-Type", file.metadata?.mimetype || "application/octet-stream");  
+  res.setHeader("Content-Disposition", `inline; filename="${file.filename}"`);  
+});  
 
-    downloadStream.on('error', () => res.status(404).send('File not found'));
-    downloadStream.pipe(res);
-  } catch {
-    res.status(400).send('Invalid file ID');
-  }
+downloadStream.on("error", () => res.status(404).send("File not found"));  
+downloadStream.pipe(res);
+
+} catch (e) {
+res.status(400).send("Invalid ID");
+}
 });
 
-// 🗑️ Delete a file (Admin only)
+// Delete file (admin only)
 app.delete('/uploads/:id', async (req, res) => {
-  const auth = req.headers['authorization'];
-  if (!auth) return res.json({ success: false, error: 'Unauthorized' });
+const auth = req.headers['authorization'];
+if (!auth) return res.json({ success: false, error: "Unauthorized" });
 
-  const [user, pass] = Buffer.from(auth.split(' ')[1], 'base64').toString().split(':');
+const [user, pass] = Buffer.from(auth.split(" ")[1], "base64").toString().split(":");
 
-  if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
-    return res.json({ success: false, error: 'Forbidden' });
-  }
+if (user !== ADMIN_USER || pass !== ADMIN_PASS) {
+return res.json({ success: false, error: "Forbidden" });
+}
 
-  try {
-    const id = new ObjectId(req.params.id);
-    await bucket.delete(id);
-    res.json({ success: true });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
+try {
+const id = new ObjectId(req.params.id);
+await bucket.delete(id);
+res.json({ success: true });
+} catch (e) {
+console.error("❌ Delete failed:", e.message);
+res.json({ success: false, error: e.message });
+}
 });
 
-// 🚀 Start server after MongoDB connects
+// Start server
 initMongo().then(() => {
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(🚀 Server running on port ${PORT}));
 });
 
-// Export app (for Vercel)
 module.exports = app;
