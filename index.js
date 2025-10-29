@@ -1,4 +1,3 @@
-
 const express = require('express');
 const multer = require('multer');
 const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
@@ -83,13 +82,7 @@ try {
 const id = new ObjectId(req.params.id);
 const downloadStream = bucket.openDownloadStream(id);
 
-downloadStream.on("file", (file) => {  
-  res.setHeader("Content-Type", file.metadata?.mimetype || "application/octet-stream");  
-  res.setHeader("Content-Disposition", `inline; filename="${file.filename}"`);  
-});  
-
-downloadStream.on("error", () => res.status(404).send("File not found"));  
-downloadStream.pipe(res);
+downloadStream.on("file", (file) => { res.setHeader("Content-Type", file.metadata?.mimetype || "application/octet-stream"); res.setHeader("Content-Disposition", `inline; filename="${file.filename}"`); }); downloadStream.on("error", () => res.status(404).send("File not found")); downloadStream.pipe(res); 
 
 } catch (e) {
 res.status(400).send("Invalid ID");
@@ -120,6 +113,4 @@ res.json({ success: false, error: e.message });
 // Start server
 initMongo().then(() => {
 app.listen(PORT, () => console.log(🚀 Server running on port ${PORT}));
-});
-
 module.exports = app;
