@@ -119,3 +119,5 @@ app.delete('/uploads/:id', async (req, res) => {
 initMongo().then(() => {
   app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 });
+
+module.exports = app;
