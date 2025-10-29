@@ -1,6 +1,4 @@
-sayuramihiranga4_db_user
-iTSvhogsJueCYCWv
-මෙකට දාලා දියම්
+
 const express = require('express');
 const multer = require('multer');
 const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
