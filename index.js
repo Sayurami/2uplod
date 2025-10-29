@@ -10,38 +10,38 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_USER = "sayura";
 const ADMIN_PASS = "Sayura2008***7";
 
-// MongoDB URI
-const uri = "mongodb://mongo:oPUThvVacCFrJGoxlriBbRmtdlyVtlKL@ballast.proxy.rlwy.net:27465";
+// ✅ MongoDB Atlas URI
+const uri = "mongodb+srv://sayuramihiranga4_db_user:iTSvhogsJueCYCWv@cluster0.68c9428b2ca56a5a40cdc1bc.mongodb.net/uploads_db?retryWrites=true&w=majority&appName=Cluster0";
 
 const client = new MongoClient(uri);
 let bucket, db;
 
-// Connect to MongoDB before starting server
+// ✅ Connect to MongoDB before starting server
 async function initMongo() {
   try {
     await client.connect();
     db = client.db("uploads_db");
     bucket = new GridFSBucket(db, { bucketName: "photos" });
-    console.log("✅ MongoDB connected");
+    console.log("✅ MongoDB Atlas connected successfully");
   } catch (err) {
     console.error("❌ MongoDB connection failed:", err);
     process.exit(1);
   }
 }
 
-// Multer memory storage
+// ✅ Multer memory storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve HTML
+// ✅ Serve HTML page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Upload route
+// ✅ Upload route
 app.post('/upload', upload.single('photo'), (req, res) => {
   if (!req.file) return res.status(400).send('No file uploaded!');
   const { name, description } = req.body;
@@ -64,8 +64,8 @@ app.post('/upload', upload.single('photo'), (req, res) => {
   });
 });
 
-// Return gallery (metadata only)
-app.get('/uploads/', async (req, res) => {
+// ✅ Return gallery (metadata only)
+app.get('/uploads', async (req, res) => {
   const files = await db.collection("photos.files").find().toArray();
   res.json(files.map(f => ({
     id: f._id,
@@ -76,7 +76,7 @@ app.get('/uploads/', async (req, res) => {
   })));
 });
 
-// Download file by ID
+// ✅ Download file by ID
 app.get('/file/:id', (req, res) => {
   try {
     const id = new ObjectId(req.params.id);
@@ -94,7 +94,7 @@ app.get('/file/:id', (req, res) => {
   }
 });
 
-// Delete file (admin only)
+// ✅ Delete file (admin only)
 app.delete('/uploads/:id', async (req, res) => {
   const auth = req.headers['authorization'];
   if (!auth) return res.json({ success: false, error: "Unauthorized" });
@@ -115,7 +115,7 @@ app.delete('/uploads/:id', async (req, res) => {
   }
 });
 
-// Start server
+// ✅ Start server
 initMongo().then(() => {
   app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 });
